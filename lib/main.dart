@@ -77,7 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
         showResults = true;
       });
     } else {
-      print('TEST: Failed to load news');
+      print('Failed to load news');
       setState(() {
         isLoading = false;
       });
