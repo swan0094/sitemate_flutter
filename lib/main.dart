@@ -1,6 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,24 +36,53 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late String _searchQuery;
   late String url;
+  Set<SearchResults> searchResults = {};
+
+  bool isLoading = false;
+  bool showResults = false;
 
   void _setSearchQuery(String value) {
     setState(() {
       _searchQuery = value;
-      String formattedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
       // This key is for demonstration purposes only and should not be used in production.
       // It would normally be stored in a secure location.
       url =
-          'https://newsapi.org/v2/everything?q=$_searchQuery&from=$formattedDate&sortBy=popularity&apiKey=183daca270264bad86fc5b72972fb82a';
+          'https://newsapi.org/v2/everything?q=$_searchQuery&sortBy=popularity&apiKey=183daca270264bad86fc5b72972fb82a';
     });
   }
 
   void _searchNews() async {
+    setState(() {
+      isLoading = true;
+    });
+
     final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
-      print(response.body);
+      searchResults.clear();
+      final data = jsonDecode(response.body);
+      final articles = data['articles'] as List;
+
+      if (articles.isEmpty) {
+        setState(() {
+          isLoading = false;
+          showResults = true;
+        });
+        return;
+      }
+
+      for (final article in articles) {
+        searchResults.add(SearchResults.fromJson(article));
+      }
+
+      setState(() {
+        isLoading = false;
+        showResults = true;
+      });
     } else {
-      print('Failed to load news');
+      print('TEST: Failed to load news');
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -62,39 +92,108 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
+        leading: showResults
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() {
+                  showResults = false;
+                }),
+              )
+            : null,
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            const Text(
-              'Welcome to my demo app!',
-              style: TextStyle(fontSize: 24),
-              textAlign: TextAlign.center,
-            ),
-            const Text(
-              'Type a keyword and hit enter or click the search icon to search for related news.',
-              style: TextStyle(fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            SearchBar(
-              constraints: const BoxConstraints(
-                maxWidth: 400,
-                minHeight: 60,
+            if (isLoading)
+              const Center(
+                child: CircularProgressIndicator(),
               ),
-              leading: const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(Icons.search),
+            if (!showResults && !isLoading)
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Welcome to my demo app!',
+                    style: TextStyle(fontSize: 24),
+                    textAlign: TextAlign.center,
+                  ),
+                  const Text(
+                    'Type a keyword and hit enter or click the search icon to search for related news.',
+                    style: TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  SearchBar(
+                    constraints: const BoxConstraints(
+                      maxWidth: 400,
+                      minHeight: 60,
+                    ),
+                    leading: const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.search),
+                    ),
+                    onChanged: (value) => _setSearchQuery(value),
+                    onSubmitted: (value) => _searchNews(),
+                    onTapOutside: (event) => FocusScope.of(context).unfocus(),
+                  ),
+                ],
               ),
-              onChanged: (value) => _setSearchQuery,
-              onSubmitted: (value) => _searchNews,
-              onTapOutside: (event) => FocusScope.of(context).unfocus(),
-            ),
+            if (showResults)
+              Center(
+                child: isLoading
+                    ? const CircularProgressIndicator()
+                    : searchResults.isEmpty
+                        ? const Text('No results')
+                        : ListView.builder(
+                            itemCount: searchResults.length,
+                            itemBuilder: (context, index) {
+                              final result = searchResults.elementAt(index);
+                              return ListTile(
+                                title: Text(result.title),
+                                subtitle: Text(result.description),
+                              );
+                            },
+                          ),
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class SearchResults {
+  final Object source;
+  final String author;
+  final String title;
+  final String description;
+  final String url;
+  final String urlToImage;
+  final String publishedAt;
+  final String content;
+
+  SearchResults({
+    required this.source,
+    required this.author,
+    required this.title,
+    required this.description,
+    required this.url,
+    required this.urlToImage,
+    required this.publishedAt,
+    required this.content,
+  });
+
+  factory SearchResults.fromJson(Map<String, dynamic> json) {
+    return SearchResults(
+      source: json['source'],
+      author: json['author'] ?? '',
+      title: json['title'],
+      description: json['description'],
+      url: json['url'] ?? '',
+      urlToImage: json['urlToImage'] ?? '',
+      publishedAt: json['publishedAt'],
+      content: json['content'],
     );
   }
 }
