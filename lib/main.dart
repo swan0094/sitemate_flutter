@@ -19,15 +19,13 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff2e81da)),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Sitemate - Alex Swan App'),
+      home: const MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+  const MyHomePage({super.key});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -91,7 +89,6 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
         leading: showResults
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -150,7 +147,10 @@ class _MyHomePageState extends State<MyHomePage> {
                             itemBuilder: (context, index) {
                               final result = searchResults.elementAt(index);
                               return ListTile(
-                                title: Text(result.title),
+                                title: Text(result.title,
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold)),
                                 subtitle: Text(result.description),
                               );
                             },
